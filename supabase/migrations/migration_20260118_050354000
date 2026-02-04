@@ -1,0 +1,40 @@
+-- 修改API配置表，支持账号密码方式
+ALTER TABLE tiktok_api_configs 
+  ADD COLUMN IF NOT EXISTS username TEXT,
+  ADD COLUMN IF NOT EXISTS password_encrypted TEXT,
+  ADD COLUMN IF NOT EXISTS auth_type TEXT DEFAULT 'api_key' 
+    CHECK (auth_type IN ('api_key', 'credentials'));
+
+-- 更新FastMoss配置为账号密码类型
+UPDATE tiktok_api_configs 
+SET auth_type = 'credentials' 
+WHERE provider = 'fastmoss';
+
+-- 添加爬虫会话管理表
+CREATE TABLE IF NOT EXISTS scraper_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider TEXT NOT NULL,
+  session_token TEXT,
+  cookies JSONB,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(provider)
+);
+
+-- 启用RLS
+ALTER TABLE scraper_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can manage scraper sessions" ON scraper_sessions 
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- 创建更新时间触发器
+CREATE TRIGGER update_scraper_sessions_updated_at 
+  BEFORE UPDATE ON scraper_sessions
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_tiktok_updated_at();
+
+COMMENT ON TABLE scraper_sessions IS 'FastMoss爬虫会话管理，存储登录状态和cookies';
+COMMENT ON COLUMN tiktok_api_configs.auth_type IS 'api_key: API密钥方式, credentials: 账号密码方式';
+COMMENT ON COLUMN tiktok_api_configs.username IS '用于账号密码登录的用户名';
+COMMENT ON COLUMN tiktok_api_configs.password_encrypted IS '加密存储的密码';

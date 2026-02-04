@@ -1,0 +1,110 @@
+-- 创建TikTok商品数据表
+CREATE TABLE IF NOT EXISTS tiktok_products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  name_en TEXT,
+  description TEXT,
+  images JSONB DEFAULT '[]'::jsonb,
+  price JSONB NOT NULL,
+  sales JSONB NOT NULL,
+  growth JSONB NOT NULL,
+  competition JSONB NOT NULL,
+  category JSONB NOT NULL,
+  countries TEXT[] NOT NULL,
+  profit_margin DECIMAL,
+  supplier JSONB,
+  logistics JSONB,
+  tiktok_data JSONB,
+  data_source TEXT NOT NULL CHECK (data_source IN ('echotik', 'fastmoss', 'manual')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 创建市场数据表
+CREATE TABLE IF NOT EXISTS tiktok_market_data (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  country_code TEXT NOT NULL,
+  country_name TEXT NOT NULL,
+  population BIGINT,
+  internet_penetration DECIMAL,
+  ecommerce_growth DECIMAL,
+  average_order_value DECIMAL,
+  popular_payments TEXT[],
+  cultural_notes JSONB,
+  top_categories JSONB,
+  climate JSONB,
+  data_source TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(country_code, data_source)
+);
+
+-- 创建API配置表
+CREATE TABLE IF NOT EXISTS tiktok_api_configs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider TEXT NOT NULL CHECK (provider IN ('echotik', 'fastmoss')),
+  api_key TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  last_used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(provider)
+);
+
+-- 创建数据采集任务表
+CREATE TABLE IF NOT EXISTS tiktok_collection_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_type TEXT NOT NULL CHECK (task_type IN ('products', 'market', 'trends')),
+  status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'completed', 'failed')) DEFAULT 'pending',
+  progress INTEGER DEFAULT 0,
+  countries TEXT[],
+  categories TEXT[],
+  provider TEXT NOT NULL,
+  started_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  error_message TEXT,
+  items_collected INTEGER DEFAULT 0,
+  items_total INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_tiktok_products_data_source ON tiktok_products(data_source);
+CREATE INDEX IF NOT EXISTS idx_tiktok_products_updated_at ON tiktok_products(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tiktok_collection_tasks_status ON tiktok_collection_tasks(status);
+
+-- 启用行级安全
+ALTER TABLE tiktok_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tiktok_market_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tiktok_api_configs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tiktok_collection_tasks ENABLE ROW LEVEL SECURITY;
+
+-- 创建RLS策略（所有人都可以读取和写入）
+CREATE POLICY "Anyone can manage products" ON tiktok_products FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Anyone can manage market data" ON tiktok_market_data FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Anyone can manage api configs" ON tiktok_api_configs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Anyone can manage collection tasks" ON tiktok_collection_tasks FOR ALL USING (true) WITH CHECK (true);
+
+-- 创建更新时间触发器函数（如果不存在）
+CREATE OR REPLACE FUNCTION update_tiktok_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- 创建触发器
+CREATE TRIGGER update_tiktok_products_updated_at BEFORE UPDATE ON tiktok_products
+  FOR EACH ROW EXECUTE FUNCTION update_tiktok_updated_at();
+
+CREATE TRIGGER update_tiktok_market_data_updated_at BEFORE UPDATE ON tiktok_market_data
+  FOR EACH ROW EXECUTE FUNCTION update_tiktok_updated_at();
+
+CREATE TRIGGER update_tiktok_api_configs_updated_at BEFORE UPDATE ON tiktok_api_configs
+  FOR EACH ROW EXECUTE FUNCTION update_tiktok_updated_at();
+
+CREATE TRIGGER update_tiktok_collection_tasks_updated_at BEFORE UPDATE ON tiktok_collection_tasks
+  FOR EACH ROW EXECUTE FUNCTION update_tiktok_updated_at();

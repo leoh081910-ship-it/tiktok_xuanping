@@ -1,0 +1,29 @@
+# Dependabot配置 - 自动更新依赖
+version: 2
+updates:
+  # npm依赖更新
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "yourusername"
+    assignees:
+      - "yourusername"
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "automated"
+
+  # GitHub Actions更新
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(ci)"
+    labels:
+      - "ci"
+      - "automated"

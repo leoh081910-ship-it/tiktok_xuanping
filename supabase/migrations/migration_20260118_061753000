@@ -1,0 +1,20 @@
+-- 修改tiktok_accounts表结构，支持一个账号管理多个国家
+-- 1. 删除旧的唯一约束
+DROP INDEX IF EXISTS unique_active_account_per_country;
+
+-- 2. 将country字段改为countries数组
+ALTER TABLE tiktok_accounts 
+DROP COLUMN IF EXISTS country;
+
+ALTER TABLE tiktok_accounts 
+ADD COLUMN countries TEXT[] NOT NULL DEFAULT ARRAY['VN'];
+
+-- 3. 添加新的唯一约束：活跃账号的邮箱必须唯一
+CREATE UNIQUE INDEX unique_active_account_email 
+ON tiktok_accounts(email) 
+WHERE is_active = true;
+
+-- 4. 更新注释
+COMMENT ON COLUMN tiktok_accounts.account_name IS '账号备注名称';
+COMMENT ON COLUMN tiktok_accounts.countries IS '账号可访问的国家站点列表，如: {VN,TH,MY,SG}';
+COMMENT ON COLUMN tiktok_accounts.description IS '账号描述备注';

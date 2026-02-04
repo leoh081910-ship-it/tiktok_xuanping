@@ -1,0 +1,23 @@
+-- 添加账号名称和国家字段到tiktok_accounts表
+ALTER TABLE tiktok_accounts 
+ADD COLUMN IF NOT EXISTS account_name TEXT,
+ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT 'VN',
+ADD COLUMN IF NOT EXISTS description TEXT;
+
+-- 添加唯一约束：每个国家只能有一个活跃账号
+DROP INDEX IF EXISTS unique_active_account_per_country;
+CREATE UNIQUE INDEX unique_active_account_per_country 
+ON tiktok_accounts(country) 
+WHERE is_active = true;
+
+-- 给数据表添加索引以提高查询性能
+CREATE INDEX IF NOT EXISTS idx_tiktok_rankings_country 
+ON tiktok_rankings(country);
+
+CREATE INDEX IF NOT EXISTS idx_tiktok_keywords_country 
+ON tiktok_keywords(country);
+
+-- 注释
+COMMENT ON COLUMN tiktok_accounts.account_name IS '账号备注名称';
+COMMENT ON COLUMN tiktok_accounts.country IS '账号所属国家站点 (VN/TH/MY/SG)';
+COMMENT ON COLUMN tiktok_accounts.description IS '账号描述备注';
