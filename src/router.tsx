@@ -10,6 +10,7 @@ import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import VerifyConfig from "./pages/VerifyConfig";
+import EnvDebug from "./pages/EnvDebug";
 
 export const routers = [
     {
@@ -61,6 +62,11 @@ export const routers = [
       path: "/verify-config",
       name: 'verify-config',
       element: <Layout><VerifyConfig /></Layout>,
+    },
+    {
+      path: "/env-debug",
+      name: 'env-debug',
+      element: <Layout><EnvDebug /></Layout>,
     },
     /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
     {
