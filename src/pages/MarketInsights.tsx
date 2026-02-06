@@ -41,20 +41,42 @@ export default function MarketInsights() {
     setTrendsLoading(true);
     try {
       const keywords = getKeywordsForCountry(country);
-      
-      const { data, error } = await supabase.functions.invoke('google-trends', {
-        body: {
+
+      // 使用 fetch 直接调用 Edge Function（绕过 supabase.functions.invoke 的问题）
+      console.log('调用 Edge Function: google-trends');
+      console.log('参数:', { keywords, country, timeRange: '3m' });
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://cqsqedvhhnyhwxakujyf.supabase.co";
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxc3FlZHZoaG55aHd4YWt1anlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjM5NjEsImV4cCI6MjA4NTY5OTk2MX0.4xJbf6fTBqsd4xagMcUuibW7XAeT-vf5UZWXAXvyhds";
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/google-trends`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           keywords,
           country,
           timeRange: '3m',
-        },
+        })
       });
 
-      if (error) throw error;
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
 
       if (data?.success) {
         setTrendsData(data.data);
         toast.success('Google搜索趋势数据已更新');
+      } else {
+        throw new Error(data?.error || '未知错误');
       }
     } catch (error) {
       console.error('Failed to load Google Trends:', error);

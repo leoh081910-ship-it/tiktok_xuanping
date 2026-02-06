@@ -84,11 +84,24 @@ export default function TikTokOfficial() {
   const loadOpportunities = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('tiktok-shop-official', {
-        body: { dataType: 'opportunities', country: selectedCountry },
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://cqsqedvhhnyhwxakujyf.supabase.co";
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxc3FlZHZoaG55aHd4YWt1anlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjM5NjEsImV4cCI6MjA4NTY5OTk2MX0.4xJbf6fTBqsd4xagMcUuibW7XAeT-vf5UZWXAXvyhds";
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/tiktok-shop-official`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dataType: 'opportunities', country: selectedCountry })
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
 
       if (data?.noAccount) {
         setOpportunities([]);
@@ -101,6 +114,8 @@ export default function TikTokOfficial() {
         setOpportunities(data.data);
         setDataCollected(prev => ({ ...prev, opportunities: true }));
         toast.success('热门商机数据已更新');
+      } else {
+        throw new Error(data?.error || '未知错误');
       }
     } catch (error) {
       toast.error((error as Error).message || '加载热门商机失败');
@@ -113,11 +128,24 @@ export default function TikTokOfficial() {
   const loadRankings = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('tiktok-shop-official', {
-        body: { dataType: 'rankings', country: selectedCountry },
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://cqsqedvhhnyhwxakujyf.supabase.co";
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxc3FlZHZoaG55aHd4YWt1anlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjM5NjEsImV4cCI6MjA4NTY5OTk2MX0.4xJbf6fTBqsd4xagMcUuibW7XAeT-vf5UZWXAXvyhds";
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/tiktok-shop-official`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dataType: 'rankings', country: selectedCountry })
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
 
       if (data?.noAccount) {
         setRankings({});
@@ -130,6 +158,8 @@ export default function TikTokOfficial() {
         setRankings(data.data);
         setDataCollected(prev => ({ ...prev, rankings: true }));
         toast.success('商品榜单数据已更新');
+      } else {
+        throw new Error(data?.error || '未知错误');
       }
     } catch (error) {
       toast.error((error as Error).message || '加载商品榜单失败');
@@ -142,11 +172,24 @@ export default function TikTokOfficial() {
   const loadKeywords = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('tiktok-shop-official', {
-        body: { dataType: 'keywords', country: selectedCountry },
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://cqsqedvhhnyhwxakujyf.supabase.co";
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxc3FlZHZoaG55aHd4YWt1anlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjM5NjEsImV4cCI6MjA4NTY5OTk2MX0.4xJbf6fTBqsd4xagMcUuibW7XAeT-vf5UZWXAXvyhds";
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/tiktok-shop-official`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dataType: 'keywords', country: selectedCountry })
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
 
       if (data?.noAccount) {
         setKeywords([]);
@@ -159,6 +202,8 @@ export default function TikTokOfficial() {
         setKeywords(data.data);
         setDataCollected(prev => ({ ...prev, keywords: true }));
         toast.success('热门关键词数据已更新');
+      } else {
+        throw new Error(data?.error || '未知错误');
       }
     } catch (error) {
       toast.error((error as Error).message || '加载热门关键词失败');

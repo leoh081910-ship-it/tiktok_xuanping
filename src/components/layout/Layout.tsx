@@ -1,5 +1,6 @@
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
+import { DeepSeekAssistant } from "../ai/DeepSeekAssistant";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,6 +12,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      {/* DeepSeek AI 助手 */}
+      <DeepSeekAssistant />
     </div>
   );
 }

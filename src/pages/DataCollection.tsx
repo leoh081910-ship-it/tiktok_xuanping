@@ -8,17 +8,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  Database, 
-  Key, 
-  Play, 
-  CheckCircle, 
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Database,
+  Key,
+  Play,
+  CheckCircle,
   XCircle,
   Loader2,
   AlertCircle,
   RefreshCw,
   Zap,
   DollarSign,
+  ShoppingBag,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -92,6 +94,17 @@ export default function DataCollection() {
   const [realApiLoading, setRealApiLoading] = useState(false);
   const [quota, setQuota] = useState<{ scraperApi: number; rapidApi: number } | null>(null);
 
+  // Shopee+TikTok 融合相关状态
+  const [fusionKeyword, setFusionKeyword] = useState('jewelry');
+  const [fusionCountries, setFusionCountries] = useState<string[]>(['VN']);
+  const [fusionLoading, setFusionLoading] = useState(false);
+
+  // 三平台融合相关状态 (Google + Shopee + TikTok)
+  const [tripleKeyword, setTripleKeyword] = useState('sunglasses');
+  const [tripleCountries, setTripleCountries] = useState<string[]>(['VN', 'TH']);
+  const [tripleLoading, setTripleLoading] = useState(false);
+  const [serperKey, setSerperKey] = useState('');
+
   // 加载API配置
   const loadConfigs = async () => {
     const { data, error } = await supabase
@@ -105,11 +118,14 @@ export default function DataCollection() {
     }
 
     setConfigs(data || []);
-    
+
     // 填充已保存的配置
     data?.forEach(config => {
       if (config.provider === 'echotik' && config.api_key) {
         setEchotikKey('••••••••••••••••'); // 显示掩码
+      }
+      if (config.provider === 'serper' && config.api_key) {
+        setSerperKey('••••••••••••••••'); // 显示掩码
       }
     });
   };
@@ -144,475 +160,62 @@ export default function DataCollection() {
         description: `关键词: ${realApiKeyword}, 国家: ${realApiCountry}`
       });
 
-      // 强制使用真实API调用，获取真实数据
-      const isLocalDev = false; // 强制使用真实API
-      
-      let data;
-      if (isLocalDev) {
-        // 生成模拟数据
-        console.log('本地开发环境：使用模拟数据');
-        data = {
-          success: true,
-          count: 10,
-          dataSource: 'scraperapi',
-          cost: 0,
-          quota: {
-            scraperApi: 999,
-            rapidApi: 500
-          },
-          products: Array(10).fill(0).map((_, index) => ({
-            product_id: `mock_${Date.now()}_${index}`,
-            name: generateProductName(realApiKeyword, realApiCountry, index + 1),
-            name_en: `${realApiKeyword} Fashion Accessory ${index + 1}`,
-            description: `这是一个${realApiKeyword}商品的详细描述，适合${realApiCountry}市场。`,
-            images: [`https://via.placeholder.com/400x400/FF6B6B/FFF?text=${encodeURIComponent(realApiKeyword.replace(/\s/g, '+'))}+${index + 1}`],
-            price: {
-              value: Math.round((Math.random() * 50 + 10) * 100) / 100,
-              currency: 'USD',
-              originalPrice: Math.round((Math.random() * 80 + 20) * 100) / 100,
-              discount: Math.floor(Math.random() * 40) + 20,
-            },
-            sales: {
-              total: Math.floor(Math.random() * 50000) + 1000,
-              daily: Math.floor(Math.random() * 500) + 50,
-              weekly: Math.floor(Math.random() * 3000) + 300,
-              monthly: Math.floor(Math.random() * 15000) + 1000,
-            },
-            growth: {
-              rate: Math.round((Math.random() * 100 - 20) * 10) / 10,
-              trend: Math.random() > 0.3 ? 'up' : 'stable',
-            },
-            competition: {
-              level: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
-              score: Math.floor(Math.random() * 100),
-              competitors: Math.floor(Math.random() * 80) + 10,
-            },
-            category: {
-              primary: ['hair', 'jewelry', 'watches', 'eyewear', 'wigs', 'accessories'][Math.floor(Math.random() * 6)],
-              secondary: realApiKeyword,
-              tags: [realApiKeyword, 'fashion', realApiCountry],
-            },
-            countries: [realApiCountry],
-            profit_margin: Math.floor(Math.random() * 50) + 30,
-            supplier: {
-              name: '模拟数据供应商',
-              platform: '1688',
-              rating: Math.round((Math.random() * 1.5 + 3.5) * 10) / 10,
-              minOrder: Math.floor(Math.random() * 100) + 20,
-            },
-            logistics: {
-              shippingTime: '3-7天',
-              warehouseLocation: ['深圳', '广州', '义乌'][Math.floor(Math.random() * 3)],
-              shippingCost: Math.round((Math.random() * 8 + 2) * 10) / 10,
-            },
-            tiktok_data: {
-              videoCount: Math.floor(Math.random() * 2000) + 100,
-              totalViews: Math.floor(Math.random() * 8000000) + 500000,
-              engagement: Math.round((Math.random() * 5 + 5) * 10) / 10,
-              hashtags: [`#${realApiKeyword}`, `#${realApiCountry}`, '#fashion'],
-            },
-          }))
-        };
-        
-        // 本地开发环境：保存模拟数据到数据库
-        console.log('保存模拟数据到数据库...');
-        console.log('要保存的商品数量:', data.products.length);
-        
-        // 先测试数据库连接
-        try {
-          const { data: testData, error: testError } = await supabase.from('tiktok_products').select('*').limit(1);
-          console.log('数据库连接测试:', testError ? '失败' : '成功');
-          if (testError) {
-            console.error('数据库连接错误:', testError);
-          }
-        } catch (testError) {
-          console.error('数据库连接测试异常:', testError);
-        }
-        
-        // 保存商品数据到数据库
-        for (const product of data.products) {
-          console.log('保存商品:', product.name);
-          try {
-            const { error } = await supabase.from('tiktok_products').upsert({
-              product_id: product.product_id,
-              name: product.name,
-              name_en: product.name_en,
-              description: product.description,
-              images: product.images,
-              price: product.price,
-              sales: product.sales,
-              growth: product.growth,
-              competition: product.competition,
-              category: product.category,
-              countries: product.countries,
-              profit_margin: product.profit_margin,
-              supplier: product.supplier,
-              logistics: product.logistics,
-              tiktok_data: product.tiktok_data,
-              data_source: data.dataSource,
-              created_at: new Date().toISOString(),
-            }, {
-              onConflict: 'product_id'
-            });
-            if (error) {
-              console.error('保存商品数据失败:', error);
-            } else {
-              console.log('保存商品数据成功:', product.product_id);
-            }
-          } catch (saveError) {
-            console.error('保存商品数据异常:', saveError);
-          }
-        }
-        
-        // 保存后查询数据库，验证数据是否存在
-        try {
-          const { data: savedData, error: queryError } = await supabase.from('tiktok_products').select('*');
-          console.log('保存后查询结果:', {
-            count: savedData?.length || 0,
-            error: queryError
-          });
-          if (savedData && savedData.length > 0) {
-            console.log('保存成功的商品示例:', savedData[0].name);
-          }
-        } catch (queryError) {
-          console.error('查询数据库异常:', queryError);
-        }
-        
-        // 记录API使用情况
-        const { error: logError } = await supabase.from('api_usage_log').insert({
-          service: 'scraperapi',
-          count: 1,
-          cost: 0,
-          created_at: new Date().toISOString(),
-        });
-        if (logError) {
-          console.error('记录API使用情况失败:', logError);
-        }
-      } else {
-        // 直接使用用户提供的 ScraperAPI 密钥
-        const scraperApiKey = 'ba58f52d9a9935681dc7776bbf8888b8';
-        
-        // 直接调用 ScraperAPI
-        console.log('直接调用 ScraperAPI...');
-        
-        // 构建 ScraperAPI 请求 URL
-        const tiktokUrl = `https://www.tiktok.com/search?q=${encodeURIComponent(realApiKeyword)}&region=${realApiCountry}`;
-        const scraperApiUrl = `https://api.scraperapi.com/?api_key=${scraperApiKey}&url=${encodeURIComponent(tiktokUrl)}`;
+      // 使用 fetch 直接调用 Edge Function（绕过 supabase.client 的问题）
+      console.log('调用 Edge Function: tiktok-real-collector');
+      console.log('参数:', { keyword: realApiKeyword, country: realApiCountry, dataType: 'product' });
 
-        // 发送请求
-        const response = await fetch(scraperApiUrl);
-        if (!response.ok) {
-          throw new Error(`ScraperAPI 请求失败: ${response.status}`);
-        }
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://cqsqedvhhnyhwxakujyf.supabase.co";
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxc3FlZHZoaG55aHd4YWt1anlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjM5NjEsImV4cCI6MjA4NTY5OTk2MX0.4xJbf6fTBqsd4xagMcUuibW7XAeT-vf5UZWXAXvyhds";
 
-        // 解析响应
-        const html = await response.text();
-        console.log('ScraperAPI 响应获取成功');
+      const response = await fetch(`${supabaseUrl}/functions/v1/tiktok-real-collector`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keyword: realApiKeyword,
+          country: realApiCountry,
+          dataType: 'product'
+        })
+      });
 
-        // 从 HTML 中提取商品数据
-        console.log('解析 HTML 并提取商品信息...');
-        
-        // 使用 cheerio 解析 HTML
-        const $ = cheerio.load(html);
-        
-        // 提取商品信息
-        const products = [];
-        
-        // 尝试使用多种可能的选择器来找到商品元素
-        let productElements = [];
-        
-        // 尝试不同的选择器
-        const selectors = [
-          '.tiktok-oj4b9z',
-          '.tiktok-x6y88p-DivItemContainerV2',
-          '.tiktok-13u1lq-DivItemContainer',
-          '.tiktok-1soki6-DivItemContainer',
-          '.tiktok-1g8490c-DivItemContainer',
-          '.tiktok-19k4p9p-DivItemContainer',
-          '.tiktok-1cw07i1-DivItemContainer',
-          'div[class*="ItemContainer"]',
-          'div[class*="Product"]',
-          'div[class*="product"]',
-          'article',
-          'div[role="article"]'
-        ];
-        
-        // 尝试每个选择器
-        for (const selector of selectors) {
-          const elements = $(selector);
-          if (elements.length > 0) {
-            productElements = elements;
-            console.log(`使用选择器 "${selector}" 找到 ${elements.length} 个元素`);
-            break;
-          }
-        }
-        
-        // 检查是否找到商品元素
-        if (productElements.length === 0) {
-          // 尝试查找包含图片的元素
-          const imageElements = $('img');
-          if (imageElements.length > 0) {
-            console.log(`找到 ${imageElements.length} 个图片元素`);
-            
-            // 从图片元素的父级元素中提取商品信息
-            imageElements.each((index, element) => {
-              const parentElement = $(element).parent();
-              if (parentElement.length > 0) {
-                // 提取商品名称
-                let productName = parentElement.text().trim();
-                if (!productName) {
-                  productName = `商品 ${index + 1}`;
-                }
-                
-                // 提取商品图片
-                let productImage = $(element).attr('src');
-                if (!productImage) {
-                  productImage = $(element).attr('data-src');
-                }
-                if (!productImage) {
-                  productImage = `https://via.placeholder.com/400x400/008CBA/FFF?text=${encodeURIComponent(productName.replace(/\s/g, '+'))}`;
-                }
-                
-                // 生成商品数据
-                products.push({
-                  product_id: `real_${Date.now()}_${index}`,
-                  name: productName,
-                  name_en: productName,
-                  description: `This is a real ${realApiKeyword} product from ${realApiCountry}`,
-                  images: [productImage],
-                  price: {
-                    value: Math.round((Math.random() * 50 + 10) * 100) / 100,
-                    currency: 'USD',
-                    originalPrice: Math.round((Math.random() * 80 + 20) * 100) / 100,
-                    discount: Math.floor(Math.random() * 40) + 20,
-                  },
-                  sales: {
-                    total: Math.floor(Math.random() * 50000) + 1000,
-                    daily: Math.floor(Math.random() * 500) + 50,
-                    weekly: Math.floor(Math.random() * 3000) + 300,
-                    monthly: Math.floor(Math.random() * 15000) + 1000,
-                  },
-                  growth: {
-                    rate: Math.round((Math.random() * 100 - 20) * 10) / 10,
-                    trend: Math.random() > 0.3 ? 'up' : 'stable',
-                  },
-                  competition: {
-                    level: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
-                    score: Math.floor(Math.random() * 100),
-                    competitors: Math.floor(Math.random() * 80) + 10,
-                  },
-                  category: {
-                    primary: ['hair', 'jewelry', 'watches', 'eyewear', 'wigs', 'accessories'][Math.floor(Math.random() * 6)],
-                    secondary: realApiKeyword,
-                    tags: [realApiKeyword, 'fashion', realApiCountry],
-                  },
-                  countries: [realApiCountry],
-                  profit_margin: Math.floor(Math.random() * 50) + 30,
-                  supplier: {
-                    name: 'Real Supplier',
-                    platform: '1688',
-                    rating: Math.round((Math.random() * 1.5 + 3.5) * 10) / 10,
-                    minOrder: Math.floor(Math.random() * 100) + 20,
-                  },
-                  logistics: {
-                    shippingTime: '3-7天',
-                    warehouseLocation: ['深圳', '广州', '义乌'][Math.floor(Math.random() * 3)],
-                    shippingCost: Math.round((Math.random() * 8 + 2) * 10) / 10,
-                  },
-                  tiktok_data: {
-                    videoCount: Math.floor(Math.random() * 2000) + 100,
-                    totalViews: Math.floor(Math.random() * 8000000) + 500000,
-                    engagement: Math.round((Math.random() * 5 + 5) * 10) / 10,
-                    hashtags: [`#${realApiKeyword}`, `#${realApiCountry}`, '#fashion'],
-                  },
-                });
-              }
-            });
-          }
-          
-          // 如果仍然没有找到商品元素，抛出错误
-          if (products.length === 0) {
-            throw new Error('未找到商品元素，请检查 TikTok 网页结构是否发生变化');
-          }
-        } else {
-          // 从 HTML 中提取真实的商品信息
-          console.log(`找到 ${productElements.length} 个商品元素`);
-          
-          productElements.each((index, element) => {
-            // 提取商品名称
-            let productName = $(element).find('.tiktok-1w0mp4t').text().trim();
-            if (!productName) {
-              productName = $(element).find('.tiktok-1u95gsw-DivContainer').text().trim();
-            }
-            if (!productName) {
-              productName = $(element).find('.tiktok-1al0ylh-TextName').text().trim();
-            }
-            if (!productName) {
-              productName = $(element).text().trim();
-            }
-            if (!productName) {
-              productName = `商品 ${index + 1}`;
-            }
-            
-            // 提取商品图片
-            let productImage = $(element).find('img').attr('src');
-            if (!productImage) {
-              productImage = $(element).find('img').attr('data-src');
-            }
-            if (!productImage) {
-              productImage = `https://via.placeholder.com/400x400/008CBA/FFF?text=${encodeURIComponent(productName.replace(/\s/g, '+'))}`;
-            }
-            
-            // 生成商品数据
-            products.push({
-              product_id: `real_${Date.now()}_${index}`,
-              name: productName,
-              name_en: productName,
-              description: `This is a real ${realApiKeyword} product from ${realApiCountry}`,
-              images: [productImage],
-              price: {
-                value: Math.round((Math.random() * 50 + 10) * 100) / 100,
-                currency: 'USD',
-                originalPrice: Math.round((Math.random() * 80 + 20) * 100) / 100,
-                discount: Math.floor(Math.random() * 40) + 20,
-              },
-              sales: {
-                total: Math.floor(Math.random() * 50000) + 1000,
-                daily: Math.floor(Math.random() * 500) + 50,
-                weekly: Math.floor(Math.random() * 3000) + 300,
-                monthly: Math.floor(Math.random() * 15000) + 1000,
-              },
-              growth: {
-                rate: Math.round((Math.random() * 100 - 20) * 10) / 10,
-                trend: Math.random() > 0.3 ? 'up' : 'stable',
-              },
-              competition: {
-                level: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)],
-                score: Math.floor(Math.random() * 100),
-                competitors: Math.floor(Math.random() * 80) + 10,
-              },
-              category: {
-                primary: ['hair', 'jewelry', 'watches', 'eyewear', 'wigs', 'accessories'][Math.floor(Math.random() * 6)],
-                secondary: realApiKeyword,
-                tags: [realApiKeyword, 'fashion', realApiCountry],
-              },
-              countries: [realApiCountry],
-              profit_margin: Math.floor(Math.random() * 50) + 30,
-              supplier: {
-                name: 'Real Supplier',
-                platform: '1688',
-                rating: Math.round((Math.random() * 1.5 + 3.5) * 10) / 10,
-                minOrder: Math.floor(Math.random() * 100) + 20,
-              },
-              logistics: {
-                shippingTime: '3-7天',
-                warehouseLocation: ['深圳', '广州', '义乌'][Math.floor(Math.random() * 3)],
-                shippingCost: Math.round((Math.random() * 8 + 2) * 10) / 10,
-              },
-              tiktok_data: {
-                videoCount: Math.floor(Math.random() * 2000) + 100,
-                totalViews: Math.floor(Math.random() * 8000000) + 500000,
-                engagement: Math.round((Math.random() * 5 + 5) * 10) / 10,
-                hashtags: [`#${realApiKeyword}`, `#${realApiCountry}`, '#fashion'],
-              },
-            });
-          });
-        }
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
-        // 构建响应数据
-        data = {
-          success: true,
-          count: products.length,
-          dataSource: 'scraperapi',
-          cost: 0.1,
-          quota: {
-            scraperApi: 999,
-            rapidApi: 500
-          },
-          products: products
-        };
-        
-        // 保存商品数据到数据库
-        console.log('保存ScraperAPI数据到数据库...');
-        console.log('要保存的商品数量:', data.products.length);
-        
-        // 保存商品数据到数据库
-        for (const product of data.products) {
-          console.log('保存商品:', product.name);
-          try {
-            const { error } = await supabase.from('tiktok_products').upsert({
-              product_id: product.product_id,
-              name: product.name,
-              name_en: product.name_en,
-              description: product.description,
-              images: product.images,
-              price: product.price,
-              sales: product.sales,
-              growth: product.growth,
-              competition: product.competition,
-              category: product.category,
-              countries: product.countries,
-              profit_margin: product.profit_margin,
-              supplier: product.supplier,
-              logistics: product.logistics,
-              tiktok_data: product.tiktok_data,
-              data_source: data.dataSource,
-              created_at: new Date().toISOString(),
-            }, {
-              onConflict: 'product_id'
-            });
-            if (error) {
-              console.error('保存商品数据失败:', error);
-            } else {
-              console.log('保存商品数据成功:', product.product_id);
-            }
-          } catch (saveError) {
-            console.error('保存商品数据异常:', saveError);
-          }
-        }
-        
-        // 保存后查询数据库，验证数据是否存在
-        try {
-          const { data: savedData, error: queryError } = await supabase.from('tiktok_products').select('*');
-          console.log('保存后查询结果:', {
-            count: savedData?.length || 0,
-            error: queryError
-          });
-          if (savedData && savedData.length > 0) {
-            console.log('保存成功的商品示例:', savedData[0].name);
-          }
-        } catch (queryError) {
-          console.error('查询数据库异常:', queryError);
-        }
-        
-        // 记录API使用情况
-        const { error: logError } = await supabase.from('api_usage_log').insert({
-          service: 'scraperapi',
-          count: 1,
-          cost: data.cost,
-          created_at: new Date().toISOString(),
-        });
-        if (logError) {
-          console.error('记录API使用情况失败:', logError);
-        }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const responseData = await response.json();
+      console.log('Edge Function 响应:', responseData);
+
+      if (!responseData.success) {
+        throw new Error(responseData.error || '数据采集失败');
       }
 
       // 更新配额信息
-      if (data.quota) {
-        setQuota(data.quota);
+      if (responseData.quota) {
+        setQuota(responseData.quota);
       }
+
+      // 显示采集结果
+      const dataQualityText = responseData.dataQuality
+        ? `标题:${responseData.dataQuality.realTitle ? '✅' : '❌'} 图片:${responseData.dataQuality.realImages ? '✅' : '❌'} 页面:${responseData.dataQuality.realPageData ? '✅' : '❌'}`
+        : '';
 
       toast.success(`采集成功！`, {
         description: `
-          获取 ${data.count} 个商品
-          数据源: ${data.dataSource}
-          成本: ¥${data.cost || 0}
-          ScraperAPI剩余: ${data.quota?.scraperApi || 0}次
-          RapidAPI剩余: ${data.quota?.rapidApi || 0}次
+          获取 ${responseData.count} 个商品
+          数据源: ${responseData.dataSource}
+          ${dataQualityText}
+          ${responseData.message || ''}
         `
       });
 
-      // 刷新商品列表
+      // 刷新任务列表
       await loadTasks();
 
     } catch (error) {
@@ -622,6 +225,285 @@ export default function DataCollection() {
       });
     } finally {
       setRealApiLoading(false);
+    }
+  };
+
+  // 调用 Shopee+TikTok 融合采集
+  const handleFusionCollection = async () => {
+    if (!fusionKeyword.trim()) {
+      toast.error('请输入关键词');
+      return;
+    }
+
+    if (fusionCountries.length === 0) {
+      toast.error('请至少选择一个国家');
+      return;
+    }
+
+    setFusionLoading(true);
+
+    // 创建任务记录
+    let taskId: string | null = null;
+    try {
+      const { data: taskData, error: taskError } = await supabase
+        .from('tiktok_collection_tasks')
+        .insert({
+          task_type: 'shopee_tiktok_fusion',
+          status: 'running',
+          progress: 0,
+          countries: fusionCountries,
+          provider: 'shopee_tiktok',
+          started_at: new Date().toISOString(),
+          items_collected: 0,
+          items_total: fusionCountries.length * 30,  // 每个国家预计30个商品
+          keyword: fusionKeyword,
+        })
+        .select()
+        .single();
+
+      if (taskError) {
+        console.error('Failed to create task:', taskError);
+      } else {
+        taskId = taskData.id;
+        console.log('Task created:', taskId);
+        // 刷新任务列表
+        await loadTasks();
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
+
+    try {
+      toast.info('正在融合采集 Shopee + TikTok 数据...', {
+        description: `关键词: ${fusionKeyword}, 国家: ${fusionCountries.join(', ')}`
+      });
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://cqsqedvhhnyhwxakujyf.supabase.co";
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxc3FlZHZoaG55aHd4YWt1anlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjM5NjEsImV4cCI6MjA4NTY5OTk2MX0.4xJbf6fTBqsd4xagMcUuibW7XAeT-vf5UZWXAXvyhds";
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/shopee-tiktok-fusion`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keyword: fusionKeyword,
+          countries: fusionCountries,
+          limit: 30
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const responseData = await response.json();
+
+      if (!responseData.success) {
+        throw new Error(responseData.error || '融合采集失败');
+      }
+
+      toast.success('融合采集成功!', {
+        description: `
+          Shopee 商品: ${responseData.shopeeCount} 个
+          TikTok 趋势: ${responseData.tiktokTrendsCount} 个
+          融合生成: ${responseData.fusedCount} 个商品
+          平均评分: ${responseData.avgFusionScore}/100
+        `
+      });
+
+      // 更新任务记录为完成状态
+      if (taskId) {
+        try {
+          await supabase
+            .from('tiktok_collection_tasks')
+            .update({
+              status: 'completed',
+              progress: 100,
+              completed_at: new Date().toISOString(),
+              items_collected: responseData.fusedCount,
+              fusion_score: parseFloat(responseData.avgFusionScore) || 0,
+            })
+            .eq('id', taskId);
+        } catch (error) {
+          console.error('Error updating task:', error);
+        }
+      }
+
+      // 刷新任务列表
+      await loadTasks();
+
+    } catch (error) {
+      console.error('Fusion collection error:', error);
+
+      // 更新任务记录为失败状态
+      if (taskId) {
+        try {
+          await supabase
+            .from('tiktok_collection_tasks')
+            .update({
+              status: 'failed',
+              completed_at: new Date().toISOString(),
+              error_message: (error as Error).message || '未知错误',
+            })
+            .eq('id', taskId);
+        } catch (updateError) {
+          console.error('Error updating failed task:', updateError);
+        }
+      }
+
+      toast.error('融合采集失败', {
+        description: (error as Error).message || '请稍后重试'
+      });
+    } finally {
+      setFusionLoading(false);
+    }
+  };
+
+  // 调用三平台融合采集 (Google + Shopee + TikTok)
+  const handleTripleFusionCollection = async () => {
+    if (!tripleKeyword.trim()) {
+      toast.error('请输入关键词');
+      return;
+    }
+
+    if (tripleCountries.length === 0) {
+      toast.error('请至少选择一个国家');
+      return;
+    }
+
+    // 检查是否配置了 SERPER API
+    const serperConfig = configs.find(c => c.provider === 'serper');
+    if (!serperConfig || !serperConfig.api_key) {
+      toast.error('请先在"API配置"Tab 中配置 SERPER_API_KEY');
+      return;
+    }
+
+    setTripleLoading(true);
+
+    // 创建任务记录
+    let taskId: string | null = null;
+    try {
+      const { data: taskData, error: taskError } = await supabase
+        .from('tiktok_collection_tasks')
+        .insert({
+          task_type: 'google_shopee_tiktok_fusion',
+          status: 'running',
+          progress: 0,
+          countries: tripleCountries,
+          provider: 'triple_platform',
+          started_at: new Date().toISOString(),
+          items_collected: 0,
+          items_total: tripleCountries.length * 10,
+          keyword: tripleKeyword,
+        })
+        .select()
+        .single();
+
+      if (taskError) {
+        console.error('Failed to create task:', taskError);
+        toast.error('创建任务记录失败', {
+          description: `错误: ${taskError.message}`
+        });
+      } else {
+        taskId = taskData.id;
+        console.log('Task created:', taskId);
+        await loadTasks();
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      toast.error('创建任务记录异常', {
+        description: (error as Error).message
+      });
+    }
+
+    try {
+      toast.info('正在融合采集 Google + Shopee + TikTok 数据...', {
+        description: `关键词: ${tripleKeyword}, 国家: ${tripleCountries.join(', ')}`
+      });
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://cqsqedvhhnyhwxakujyf.supabase.co";
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxc3FlZHZoaG55aHd4YWt1anlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjM5NjEsImV4cCI6MjA4NTY5OTk2MX0.4xJbf6fTBqsd4xagMcUuibW7XAeT-vf5UZWXAXvyhds";
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/triple-fusion-v2`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keyword: tripleKeyword,
+          countries: tripleCountries,
+          limit: 10
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const responseData = await response.json();
+
+      if (!responseData.success) {
+        throw new Error(responseData.error || '三平台融合采集失败');
+      }
+
+      toast.success('三平台融合采集成功!', {
+        description: `
+          Google 商品: ${responseData.googleCount} 个
+          Shopee 商品: ${responseData.shopeeCount} 个
+          TikTok 趋势: ${responseData.tiktokTrendsCount} 个
+          融合生成: ${responseData.fusedCount} 个商品
+          平均评分: ${responseData.avgFusionScore}/100
+        `
+      });
+
+      // 更新任务记录为完成状态
+      if (taskId) {
+        try {
+          await supabase
+            .from('tiktok_collection_tasks')
+            .update({
+              status: 'completed',
+              progress: 100,
+              completed_at: new Date().toISOString(),
+              items_collected: responseData.fusedCount,
+              fusion_score: parseFloat(responseData.avgFusionScore) || 0,
+            })
+            .eq('id', taskId);
+        } catch (error) {
+          console.error('Error updating task:', error);
+        }
+      }
+
+      await loadTasks();
+
+    } catch (error) {
+      console.error('Triple fusion collection error:', error);
+
+      if (taskId) {
+        try {
+          await supabase
+            .from('tiktok_collection_tasks')
+            .update({
+              status: 'failed',
+              completed_at: new Date().toISOString(),
+              error_message: (error as Error).message || '未知错误',
+            })
+            .eq('id', taskId);
+        } catch (updateError) {
+          console.error('Error updating failed task:', updateError);
+        }
+      }
+
+      toast.error('三平台融合采集失败', {
+        description: (error as Error).message || '请检查 SERPER_API_KEY 配置'
+      });
+    } finally {
+      setTripleLoading(false);
     }
   };
 
@@ -760,16 +642,28 @@ export default function DataCollection() {
 
       // 根据provider调用不同的Edge Function
       const functionName = provider === 'fastmoss' ? 'fastmoss-scraper' : 'collect-tiktok-data';
-      const { error: functionError } = await supabase.functions.invoke(functionName, {
-        body: {
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://cqsqedvhhnyhwxakujyf.supabase.co";
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxc3FlZHZoaG55aHd4YWt1anlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxMjM5NjEsImV4cCI6MjA4NTY5OTk2MX0.4xJbf6fTBqsd4xagMcUuibW7XAeT-vf5UZWXAXvyhds";
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           taskId: task.id,
           provider,
-        },
+        })
       });
 
-      if (functionError) {
-        console.error('Function error:', functionError);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Function error:', errorText);
         toast.error('启动采集任务失败');
+      } else {
+        console.log('采集任务已启动');
       }
 
       loadTasks();
@@ -822,10 +716,18 @@ export default function DataCollection() {
       </div>
 
       <Tabs defaultValue="realapi" className="w-full">
-        <TabsList className="grid w-full max-w-3xl grid-cols-3">
+        <TabsList className="grid w-full max-w-5xl grid-cols-5">
           <TabsTrigger value="realapi">
             <Zap className="h-4 w-4 mr-2" />
-            真实API采集
+            真实API
+          </TabsTrigger>
+          <TabsTrigger value="fusion">
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            双平台融合
+          </TabsTrigger>
+          <TabsTrigger value="triple">
+            <Database className="h-4 w-4 mr-2" />
+            三平台融合
           </TabsTrigger>
           <TabsTrigger value="config">API配置</TabsTrigger>
           <TabsTrigger value="tasks">采集任务</TabsTrigger>
@@ -1012,6 +914,295 @@ export default function DataCollection() {
           </Card>
         </TabsContent>
 
+        {/* Shopee+TikTok 融合采集 */}
+        <TabsContent value="fusion" className="space-y-6">
+          <Alert className="bg-green-50 border-green-200">
+            <ShoppingBag className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-900">
+              <div className="space-y-2">
+                <p className="font-semibold">✨ Shopee + TikTok Creative Center 数据融合</p>
+                <p className="text-sm">
+                  实时爬取 Shopee 电商数据（价格、销量、评价）+ TikTok Creative Center 趋势数据，
+                  通过融合算法找出"Shopee热销 + TikTok流行"的高潜力商品。
+                </p>
+                <p className="text-sm">
+                  <strong>优势：</strong>真实电商数据 + 官方趋势验证，无需 API 密钥，完全免费！
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5" />
+                Shopee + TikTok 融合采集
+              </CardTitle>
+              <CardDescription>
+                输入关键词和目标国家，自动融合 Shopee 和 TikTok 数据
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fusion-keyword">搜索关键词</Label>
+                <Input
+                  id="fusion-keyword"
+                  placeholder="例如: jewelry, watch, sunglasses"
+                  value={fusionKeyword}
+                  onChange={(e) => setFusionKeyword(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>选择国家（可多选）</Label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {COUNTRY_LIST.map(country => (
+                    <div key={country.code} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`fusion-${country.code}`}
+                        checked={fusionCountries.includes(country.code)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setFusionCountries([...fusionCountries, country.code]);
+                          } else {
+                            setFusionCountries(fusionCountries.filter(c => c !== country.code));
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`fusion-${country.code}`}
+                        className="text-sm cursor-pointer"
+                      >
+                        {country.flag} {country.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={handleFusionCollection}
+                  disabled={fusionLoading || !fusionKeyword.trim() || fusionCountries.length === 0}
+                  className="flex-1"
+                  size="lg"
+                >
+                  {fusionLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      融合采集中...
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="h-4 w-4 mr-2" />
+                      开始融合采集
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <ShoppingBag className="h-4 w-4 mt-0.5 text-green-600" />
+                  <div className="flex-1 text-sm">
+                    <p className="font-semibold mb-1">数据融合说明</p>
+                    <ul className="space-y-1 text-muted-foreground">
+                      <li>• <strong>Shopee 数据：</strong>真实价格、销量、评分、评价数</li>
+                      <li>• <strong>TikTok 数据：</strong>流行趋势、热门话题标签</li>
+                      <li>• <strong>融合评分：</strong>综合销量(40分) + 评分(20分) + 趋势(30分) + 价格(10分)</li>
+                      <li>• <strong>高潜力商品：</strong>评分 > 60 分的商品优先推荐</li>
+                      <li>• <strong>支持国家：</strong>越南、泰国、马来西亚、新加坡</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>📊 融合评分算法</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <p className="font-semibold mb-2">评分维度（总分 100 分）</p>
+                  <ul className="space-y-1 text-muted-foreground">
+                    <li>📈 <strong>Shopee 销量：</strong>0-40 分</li>
+                    <li>⭐ <strong>Shopee 评分：</strong>0-20 分</li>
+                    <li>🔥 <strong>TikTok 趋势：</strong>0-30 分</li>
+                    <li>💰 <strong>价格竞争力：</strong>0-10 分</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-semibold mb-2">高潜力商品标准</p>
+                  <ul className="space-y-1 text-muted-foreground">
+                    <li>✅ 融合评分 ≥ 60 分</li>
+                    <li>✅ Shopee 销量 ≥ 1000</li>
+                    <li>✅ Shopee 评分 ≥ 4.0</li>
+                    <li>✅ TikTok 趋势匹配 ≥ 2 个</li>
+                    <li>✅ 价格在 10-50 美元</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded p-3 mt-2">
+                <p className="text-blue-900 text-sm">
+                  💡 <strong>提示</strong>: 融合评分综合考虑了电商表现和社交媒体热度，
+                  评分越高表示该商品在 Shopee 和 TikTok 上都表现出色，是高潜力选品目标。
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 三平台融合采集 (Google + Shopee + TikTok) */}
+        <TabsContent value="triple" className="space-y-6">
+          <Alert className="bg-purple-50 border-purple-200">
+            <Database className="h-4 w-4 text-purple-600" />
+            <AlertDescription className="text-purple-900">
+              <div className="space-y-2">
+                <p className="font-semibold">✨ Google Shopping + Shopee + TikTok 三平台融合</p>
+                <p className="text-sm">
+                  整合全球三大平台数据：Google Shopping（全球价格基准）+ Shopee（本地销量）+ TikTok（社交热度），
+                  找出"价差套利 + 社交爆火"的超级机会商品。
+                </p>
+                <p className="text-sm">
+                  <strong>优势：</strong>全球比价发现套利机会 + 真实销量验证 + TikTok 爆发式流量加持！
+                </p>
+                <div className="bg-yellow-100 border border-yellow-300 rounded p-2 mt-2">
+                  <p className="text-yellow-900 text-xs">
+                    ⚠️ <strong>需要配置：</strong>SERPER_API_KEY（Google Shopping API），
+                    请前往 <strong>"API配置"</strong> Tab 进行配置，
+                    <a href="https://serper.dev/" target="_blank" rel="noopener noreferrer" className="underline font-semibold">点击注册免费获取 2500 次/月</a>
+                  </p>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShoppingBag className="h-5 w-5" />
+                三平台融合采集
+              </CardTitle>
+              <CardDescription>
+                整合 Google Shopping、Shopee、TikTok 三大平台数据
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="triple-keyword">搜索关键词</Label>
+                <Input
+                  id="triple-keyword"
+                  placeholder="例如: sunglasses, jewelry, watch"
+                  value={tripleKeyword}
+                  onChange={(e) => setTripleKeyword(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>选择国家（可多选）</Label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {COUNTRY_LIST.map(country => (
+                    <div key={country.code} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`triple-${country.code}`}
+                        checked={tripleCountries.includes(country.code)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setTripleCountries([...tripleCountries, country.code]);
+                          } else {
+                            setTripleCountries(tripleCountries.filter(c => c !== country.code));
+                          }
+                        }}
+                      />
+                      <Label
+                        htmlFor={`triple-${country.code}`}
+                        className="text-sm cursor-pointer"
+                      >
+                        {country.flag} {country.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                onClick={handleTripleFusionCollection}
+                disabled={tripleLoading || !tripleKeyword.trim() || tripleCountries.length === 0}
+                className="w-full"
+                size="lg"
+              >
+                {tripleLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    融合采集中...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    开始三平台融合采集
+                  </>
+                )}
+              </Button>
+
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <DollarSign className="h-4 w-4 mt-0.5 text-purple-600" />
+                  <div className="flex-1 text-sm">
+                    <p className="font-semibold mb-1">三平台融合优势</p>
+                    <ul className="space-y-1 text-muted-foreground">
+                      <li>• <strong>Google Shopping：</strong>全球价格基准，发现套利机会</li>
+                      <li>• <strong>Shopee 数据：</strong>本地销量、评价、供应商信息</li>
+                      <li>• <strong>TikTok 数据：</strong>流行趋势、热门话题标签</li>
+                      <li>• <strong>融合评分：</strong>销量(25分) + 评分(20分) + 趋势(30分) + 价差(25分)</li>
+                      <li>• <strong>套利机会：</strong>识别 Google 高价 + Shopee 低价的商品</li>
+                      <li>• <strong>爆发潜力：</strong>TikTok 趋势验证，社交传播力强</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>📊 套利机会识别算法</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <p className="font-semibold mb-2">融合评分维度（总分 100 分）</p>
+                  <ul className="space-y-1 text-muted-foreground">
+                    <li>📈 <strong>Shopee 销量：</strong>0-25 分</li>
+                    <li>⭐ <strong>商品评分：</strong>0-20 分</li>
+                    <li>🔥 <strong>TikTok 趋势：</strong>0-30 分</li>
+                    <li>💰 <strong>价差套利：</strong>0-25 分（最重要）</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-semibold mb-2">套利机会标准</p>
+                  <ul className="space-y-1 text-muted-foreground">
+                    <li>✅ 融合评分 ≥ 70 分</li>
+                    <li>✅ Google 价格 > Shopee 价格 20%+</li>
+                    <li>✅ TikTok 趋势匹配 ≥ 2 个</li>
+                    <li>✅ Shopee 评分 ≥ 4.0</li>
+                    <li>✅ 利润空间 ≥ 30%</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="bg-purple-50 border border-purple-200 rounded p-3 mt-2">
+                <p className="text-purple-900 text-sm">
+                  💡 <strong>提示</strong>: 三平台融合不仅考虑电商表现和社交热度，
+                  还重点分析价差套利机会。如果发现某商品在 Google Shopping 上价格高，
+                  而在 Shopee 上价格低，且在 TikTok 上流行，这就是绝佳的套利机会！
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* API配置 */}
         <TabsContent value="config" className="space-y-6">
           <Alert>
@@ -1168,6 +1359,56 @@ export default function DataCollection() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* SERPER API配置 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  SERPER API (Google Shopping)
+                </CardTitle>
+                <CardDescription>
+                  Google Shopping 数据 API，免费 2500 次/月
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="serper-key">API密钥</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="serper-key"
+                      type="password"
+                      placeholder="输入SERPER API密钥"
+                      value={serperKey}
+                      onChange={(e) => setSerperKey(e.target.value)}
+                    />
+                    <Button
+                      onClick={() => saveAPIConfig('serper', serperKey)}
+                      disabled={savingConfig === 'serper'}
+                    >
+                      {savingConfig === 'serper' ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Key className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    获取地址：<a href="https://serper.dev/" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">https://serper.dev/</a>
+                    （免费 2500 次/月）
+                  </p>
+                </div>
+
+                {configs.find(c => c.provider === 'serper') && (
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+                      <CheckCircle className="h-4 w-4" />
+                      已配置
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -1198,10 +1439,25 @@ export default function DataCollection() {
                           {getStatusIcon(task.status)}
                           <div>
                             <div className="font-medium">
-                              {task.provider === 'echotik' ? 'EchoTik' : 'FastMoss'} 数据采集
+                              {task.task_type === 'google_shopee_tiktok_fusion' ? '三平台融合 (Google+Shopee+TikTok)' :
+                               task.provider === 'echotik' ? 'EchoTik' :
+                               task.provider === 'fastmoss' ? 'FastMoss' :
+                               task.provider === 'shopee_tiktok' ? 'Shopee+TikTok 融合' :
+                               task.provider === 'triple_platform' ? '三平台融合 (Google+Shopee+TikTok)' :
+                               task.task_type === 'shopee_tiktok_fusion' ? 'Shopee+TikTok 融合' :
+                               '数据采集'}
+                              {task.keyword && ` - ${task.keyword}`}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               {new Date(task.created_at).toLocaleString('zh-CN')}
+                              {task.countries && task.countries.length > 0 && (
+                                <span className="ml-2">
+                                  {task.countries.map(c => {
+                                    const country = COUNTRY_LIST.find(cl => cl.value === c);
+                                    return country ? country.flag : c;
+                                  }).join(' ')}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1221,8 +1477,17 @@ export default function DataCollection() {
                       )}
 
                       {task.status === 'completed' && (
-                        <div className="text-sm text-muted-foreground">
-                          已采集 {task.items_collected} 个商品
+                        <div className="space-y-2">
+                          <div className="text-sm text-muted-foreground">
+                            已采集 {task.items_collected} 个商品
+                          </div>
+                          {task.fusion_score && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Badge variant="outline" className="bg-green-50">
+                                融合评分: {task.fusion_score}/100
+                              </Badge>
+                            </div>
+                          )}
                         </div>
                       )}
 

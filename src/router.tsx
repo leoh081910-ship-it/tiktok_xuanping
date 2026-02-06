@@ -4,8 +4,12 @@ import DataCollection from "./pages/DataCollection";
 import Products from "./pages/Products";
 import MarketInsights from "./pages/MarketInsights";
 import TikTokOfficial from "./pages/TikTokOfficial";
+import Recommendations from "./pages/Recommendations";
+import Favorites from "./pages/Favorites";
+import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import VerifyConfig from "./pages/VerifyConfig";
 
 export const routers = [
     {
@@ -37,6 +41,26 @@ export const routers = [
       path: "/tiktok-official",
       name: 'tiktok-official',
       element: <Layout><TikTokOfficial /></Layout>,
+    },
+    {
+      path: "/recommendations",
+      name: 'recommendations',
+      element: <Layout><Recommendations /></Layout>,
+    },
+    {
+      path: "/favorites",
+      name: 'favorites',
+      element: <Layout><Favorites /></Layout>,
+    },
+    {
+      path: "/settings",
+      name: 'settings',
+      element: <Layout><Settings /></Layout>,
+    },
+    {
+      path: "/verify-config",
+      name: 'verify-config',
+      element: <Layout><VerifyConfig /></Layout>,
     },
     /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
     {
